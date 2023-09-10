@@ -75,6 +75,47 @@ public class JpaMain {
 
             */
 
+            // * 영속성 & 비영속성 & 준영속
+
+            //비영속
+            Member member = new Member();
+            member.setId(10L);
+            member.setName("HelloJPA");
+
+            //영속
+            System.out.println("=== Before ===");
+            em.persist(member);
+            // 1. 실제 이 시점에서 query가 날아가는 것이 아님
+            // 즉 em.persist() != 영속
+            //실제 쿼리가 날아가는 시점은 tx.commit()시점에 영속성 컨텍스트에 저장된 엔터티들을 대상으로 query가 날아감
+            // *** 2. 엔터티의 '@Id'가 key가 되고, 엔터티의 '인스턴스' 자체가 값이 되어
+            // '영속성 컨텍스트'(현재는 em으로 생각해도 무방/실제로는 미묘한차이 있음)에 '1차 캐시'로 저장됨
+            System.out.println("=== After ===");
+
+            em.find(Member.class, 10L);
+            // 3. find()는 1차적으로 EM의 '1차 캐시'를 탐색
+
+            System.out.println("member.id = " + member.getId());
+            System.out.println("member.name = " + member.getName());
+            // *** find()를 통한 '조회' 후 출력이지만, 실제 hibernatem가 작성한 sql에는 select 쿼리가 존재하지 않음
+            // -> DB에서 조회하기 이전, 1차 캐시에 저장된 정보로 조회
+
+            Member member2 = new Member();
+            member2.setId(20L);
+            member2.setName("HelloJPA2");
+
+            em.find(Member.class, 20L);
+            // 4. find()의 1차캐시 탐색에 데이터가 존재하지 않는 경우
+            // DB를 조회 -> 데이터를 불러와 EM의 '1차 캐시'에 '저장' -> 반환
+
+            // ** EM은 주로 단건의 request에 대한 TX를 단위로 생성/소멸 됨
+            // -> 다수의 요청에 대한 데이터를 캐싱하는 것은 아니므로, 어플리케이션 전체적으로 큰 효율을 가지는 것은 아님
+            // -> 비즈니스 로직이 매우 복잡한 경우에는 유의미한 성능 개선 효과 가능
+            // -> 넓은 범위의 캐시는 2차 캐시가 존재
+            
+            System.out.println("member2.id = " + member2.getId());
+            System.out.println("member2.name = " + member2.getName());
+
             tx.commit();
         } catch (Exception e) {
             tx.rollback();

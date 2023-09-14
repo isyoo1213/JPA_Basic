@@ -164,6 +164,45 @@ public class JpaMain {
 
             // * 엔터티 삭제 - Dirty Checking이 그대로 이루어지고 + delete 쿼리를 만들어 저장 후 처리
 
+            // * Flush
+            // - 영속성 컨텍스트의 변경 내용을 데이터베이스에 반영
+            // - 트랜잭션의 commit()이 호출되면 자동적으로 flush 호출
+            // - Dirty Checking 발생 -> '수정된' 엔티티를 '쓰기 지연 sql'에 저장 ex) update/delete sql -> DB에 sql 전송
+            // ** flush가 발생하는 것과 DB에서 commit이 이루어지는 것은 동일하지 않음 -> flush 후 commit 발생
+
+            // * 영속성 컨텍스트를 flush하는 방법
+            // 1. em.flush()로 직접 호출
+            //    -> * tx.commit()을 통한 자동 호출 이전에 'sql'을 직접 확인하고 싶을 때 강제로 호출
+            //    -> * em.flush() 호출 후에도 '1차 캐시'의 엔터티들은 지워지지 않고 저장되어 있음
+            //    -> *** 오직 'Dirty Checking'과 '쓰기 지연 sql 저장소'의 sql들이 반영되는 과정
+            // 2. tx.commit() 호출 - 플러시 자동 호출
+            //    -> JPQL은 쓰기 지연이 아닌, DB에 실시간으로 쿼리를 전송
+            //    -> persist() 후 해당 엔터티들을 flush()하지 않은 상태에서 JPQL로 조회하는 경우, DB에는 갱신된 정보들이 없으므로 무용지물
+            //    -> 이를 방지하고자 기본적으로 flush를 호출하도록 설계됨
+            // 3. JPQL 쿼리 실행 - 플러시 자동 호출
+
+            Member memberFlush = new Member(200L, "memberFlush");
+            //em.persist(memberFlush);
+            em.flush();
+            
+            System.out.println("========== flush() / commit() 쿼리 확인 선 =============");
+            //commit() 시점 이전에 query가 DB에 바로 반영되는 것을 확인 가능
+
+            // * Flush 모드 옵션
+            // - em.setFlushMode(FlushModeType.COMMIT)
+            // - Default : FlushModeType.AUTO - flush() 실행한 후 'commit() / query 전송'
+            // - FlushModeType.COMMIT - commit()을 할 때에만 flush 실행 후 commit
+            //   -> * query만 실행할 경우에는 flush를 실행하지 않음
+            //   -> ex) persist() 된 엔터티들이 있고, JPQL에서 persist()된 엔터티와 상관 없는 테이블의 데이터들을 조회할 경우
+            //   -> persist()된 엔터티들을 당장 flush할 이유가 전혀 없음
+
+            // * Flush 주의사항
+            // 1. Flush는 '영속성 컨텍스트'를 '비우는 것'이 아니다!
+            // 2. 영속성 컨텍스트의 변경 내용을 DB와 동기화 하는 과정
+            // 3. *** '트랜잭션'이라는 작업단위로 이루어지는 구조가 매우 중요!
+            //    -> commit() 수행 직전에만 flsuh가 수행되면 아무런 상관 없다
+            //    -> 즉, 트랜잭션이라는 작업단위가 존재함으로써 LazyWriting과 Buffering, jdbc.bach 등, flush를 통한 동기화와 commit()의 수행의 차이를 통한 기술들이 가능
+
             tx.commit();
         } catch (Exception e) {
             tx.rollback();

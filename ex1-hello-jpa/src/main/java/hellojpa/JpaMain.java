@@ -75,6 +75,7 @@ public class JpaMain {
 
             */
 
+
             // * 영속성 & 비영속성 & 준영속
 
             //비영속
@@ -84,7 +85,7 @@ public class JpaMain {
 
             //영속
             System.out.println("=== Before ===");
-            em.persist(member);
+            //em.persist(member);
             // 1. 실제 이 시점에서 query가 날아가는 것이 아님
             // 즉 em.persist() != 영속
             //실제 쿼리가 날아가는 시점은 tx.commit()시점에 영속성 컨텍스트에 저장된 엔터티들을 대상으로 query가 날아감
@@ -115,6 +116,53 @@ public class JpaMain {
             
             System.out.println("member2.id = " + member2.getId());
             System.out.println("member2.name = " + member2.getName());
+
+
+            // 5. 이미 조회한 엔터티의 경우, 1차 캐시에 저장된 데이터를 불러오므로 쿼리 추가적으로 나가지 않음
+            Member member1_2 = em.find(Member.class, 10L);
+
+            // * 영속 entity의 동일성 보장
+            // - ***** 1차 캐시를 통해 '반복 가능한 읽기 등급(REPEATABLE READ)' 수준의 '트랜잭션 격리수준'을 DB가 아닌 '어플리케이션 차원'에서 제공
+            Member memberA = em.find(Member.class, 10L);
+            Member memberB = em.find(Member.class, 10L);
+            System.out.println("memberA == memberB = " + (memberA==memberB));
+
+            // * 엔터티 등록 시, 트랜잭션을 지원하는 쓰기 지연
+            // - EM은 데이터 변경 시 트랜잭션을 새롭게 시작해야 한다
+            // - em.persist()를 사용하더라도, insert 쿼리를 생성해 바로 DB로 보내는 것이 아닌, '영속성 컨텍스트' 내부의 '쓰기 지연 SQL 저장소' + '1차 캐시'에 보관
+            // - tx.commit() 하는 순간, '쓰기 지연 SQL 저장소'에 저장된 sql들이 flush되어 DB에 insert 쿼리를 보내고, commit을 수행
+            Member lazyWrite1 = new Member(150L, "A");
+            Member lazyWrite2 = new Member(160L, "B");
+
+            //em.persist(lazyWrite1);
+            //em.persist(lazyWrite2);
+
+            System.out.println("========= query 전송 기준선 ============");
+
+            // 이렇게 lazyWritting을 사용하는 이유
+            // - sql은 결국 DB에서 commit을 수행하기 이전에만 존재하면 수행 가능
+            // 1. * Buffering이라는 기술을 사용할 수 있음 - commit 내용을 '모아서' 전송 가능함 -> 데이터 최적화 가능
+            // 2. jdbc.batch 를 통해 '한 단위로' 네트워크에 commit을 수행 가능함 - commit 내용을 '한번에' 전송 가능함
+            //    ex) <property name="hibernate.jdbc.batch_size" value="10"/>
+
+
+            // * 엔터티 수정 - 변경 감지(Dirty Checking)
+            Member member150 = em.find(Member.class, 150L);
+
+            member150.setName("ABC");
+            //em.persist(member150);
+            //JPA는 자바의 Collection처럼 사용하는 것을 컨셉으로 가짐
+            // -> collection객체를 통해 데이터 수정 후 따로 저장하는 과정을 가지지 않는 것처럼 JPA 또한 마찬가지로 설계됨
+            System.out.println("=======================");
+
+            //1. JPA는 트랜잭션의 commit() 시점에 내부적으로 flush가 호출됨()
+            //2. 1차 캐시 내의 @Id, 엔터티와 스냅샷을 비교
+            //   - * 스냅샷 또한 1차캐시에 존재 + *** DB에서 조회하든, persist()를 하든 '최초로' '영속성 1차 캐시에 저장'된 상태를 저장
+            //3. 변경점 확인 시, '쓰기 지연 sql 저장소'에 update sql 쿼리를 만들어 저장
+            //4. 실제 DB로 flush가 처리되어 sql이 날아감
+            //5.commit 진행
+
+            // * 엔터티 삭제 - Dirty Checking이 그대로 이루어지고 + delete 쿼리를 만들어 저장 후 처리
 
             tx.commit();
         } catch (Exception e) {

@@ -161,6 +161,7 @@ public class JpaMain {
             //3. 변경점 확인 시, '쓰기 지연 sql 저장소'에 update sql 쿼리를 만들어 저장
             //4. 실제 DB로 flush가 처리되어 sql이 날아감
             //5.commit 진행
+            // *** flush는 1차캐시를 '삭제'하는 것이 절대 아님. + 1차캐시의 스냅샷과 변경점, 엔터티는 아마 인스턴스를 기준으로 이루어질 것으로 예상
 
             // * 엔터티 삭제 - Dirty Checking이 그대로 이루어지고 + delete 쿼리를 만들어 저장 후 처리
 
@@ -202,6 +203,27 @@ public class JpaMain {
             // 3. *** '트랜잭션'이라는 작업단위로 이루어지는 구조가 매우 중요!
             //    -> commit() 수행 직전에만 flsuh가 수행되면 아무런 상관 없다
             //    -> 즉, 트랜잭션이라는 작업단위가 존재함으로써 LazyWriting과 Buffering, jdbc.bach 등, flush를 통한 동기화와 commit()의 수행의 차이를 통한 기술들이 가능
+
+            // * 준영속
+            // '영속' 상태의 '엔터티'가 영속성 컨텍스트에서 분리 (detached) -> 영속성 컨텍스트가 제공하는 기능 (1차캐시에 저장된 엔터티를 활용하는) 사용 불가능
+
+            // 방법
+            Member member150B = em.find(Member.class, 150L); // DB에서 조회한 데이터를 1차캐시에 저장 -> 영속
+            member.setName("AAAAA"); //값 변경 -> DirtyChecking -> 영속성 컨텍스트를 활용한 기능 사용 가능
+
+            // 1. em.detach(entity)
+            //   - 특정 엔터티만 준영속 상태로 전환
+            //이제 영속성 컨텍스트에서 삭제되므로 JPA에서 관리하지 않음 -> commit() 수행 시 아무 일도 일어나지 않음 + update 쿼리 나가지 않음
+            em.detach(member150B);
+
+            // 2. em.clear()
+            //   - EntityManager 내의 영속성 컨텍스트의 엔터티들을 통쨰로 날려버림
+            em.clear();
+            Member member150C = em.find(Member.class, 150L); // 날아간 엔터티를 다시 DB에서 불러오므로 1차캐시에 저장하며 '영속'
+
+            // 3. em.close()
+            //   - 영속성 컨텍스트를 아예 닫아버리는 방법
+            em.close();
 
             tx.commit();
         } catch (Exception e) {

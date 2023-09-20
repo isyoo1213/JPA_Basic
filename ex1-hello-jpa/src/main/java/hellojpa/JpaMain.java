@@ -79,33 +79,33 @@ public class JpaMain {
             // * 영속성 & 비영속성 & 준영속
 
             //비영속
-            Member member = new Member();
-            member.setId(10L);
-            member.setName("HelloJPA");
+            //Member member = new Member();
+            //member.setId(10L);
+            //member.setName("HelloJPA");
 
             //영속
-            System.out.println("=== Before ===");
+            //System.out.println("=== Before ===");
             //em.persist(member);
             // 1. 실제 이 시점에서 query가 날아가는 것이 아님
             // 즉 em.persist() != 영속
             //실제 쿼리가 날아가는 시점은 tx.commit()시점에 영속성 컨텍스트에 저장된 엔터티들을 대상으로 query가 날아감
             // *** 2. 엔터티의 '@Id'가 key가 되고, 엔터티의 '인스턴스' 자체가 값이 되어
             // '영속성 컨텍스트'(현재는 em으로 생각해도 무방/실제로는 미묘한차이 있음)에 '1차 캐시'로 저장됨
-            System.out.println("=== After ===");
+            //System.out.println("=== After ===");
 
-            em.find(Member.class, 10L);
+            //em.find(Member.class, 10L);
             // 3. find()는 1차적으로 EM의 '1차 캐시'를 탐색
 
-            System.out.println("member.id = " + member.getId());
-            System.out.println("member.name = " + member.getName());
+            //System.out.println("member.id = " + member.getId());
+            //System.out.println("member.name = " + member.getName());
             // *** find()를 통한 '조회' 후 출력이지만, 실제 hibernatem가 작성한 sql에는 select 쿼리가 존재하지 않음
             // -> DB에서 조회하기 이전, 1차 캐시에 저장된 정보로 조회
 
-            Member member2 = new Member();
-            member2.setId(20L);
-            member2.setName("HelloJPA2");
+            //Member member2 = new Member();
+            //member2.setId(20L);
+            //member2.setName("HelloJPA2");
 
-            em.find(Member.class, 20L);
+            //em.find(Member.class, 20L);
             // 4. find()의 1차캐시 탐색에 데이터가 존재하지 않는 경우
             // DB를 조회 -> 데이터를 불러와 EM의 '1차 캐시'에 '저장' -> 반환
 
@@ -114,30 +114,30 @@ public class JpaMain {
             // -> 비즈니스 로직이 매우 복잡한 경우에는 유의미한 성능 개선 효과 가능
             // -> 넓은 범위의 캐시는 2차 캐시가 존재
             
-            System.out.println("member2.id = " + member2.getId());
-            System.out.println("member2.name = " + member2.getName());
+            //System.out.println("member2.id = " + member2.getId());
+            //System.out.println("member2.name = " + member2.getName());
 
 
             // 5. 이미 조회한 엔터티의 경우, 1차 캐시에 저장된 데이터를 불러오므로 쿼리 추가적으로 나가지 않음
-            Member member1_2 = em.find(Member.class, 10L);
+            //Member member1_2 = em.find(Member.class, 10L);
 
             // * 영속 entity의 동일성 보장
             // - ***** 1차 캐시를 통해 '반복 가능한 읽기 등급(REPEATABLE READ)' 수준의 '트랜잭션 격리수준'을 DB가 아닌 '어플리케이션 차원'에서 제공
-            Member memberA = em.find(Member.class, 10L);
-            Member memberB = em.find(Member.class, 10L);
-            System.out.println("memberA == memberB = " + (memberA==memberB));
+            //Member memberA = em.find(Member.class, 10L);
+            //Member memberB = em.find(Member.class, 10L);
+            //System.out.println("memberA == memberB = " + (memberA==memberB));
 
             // * 엔터티 등록 시, 트랜잭션을 지원하는 쓰기 지연
             // - EM은 데이터 변경 시 트랜잭션을 새롭게 시작해야 한다
             // - em.persist()를 사용하더라도, insert 쿼리를 생성해 바로 DB로 보내는 것이 아닌, '영속성 컨텍스트' 내부의 '쓰기 지연 SQL 저장소' + '1차 캐시'에 보관
             // - tx.commit() 하는 순간, '쓰기 지연 SQL 저장소'에 저장된 sql들이 flush되어 DB에 insert 쿼리를 보내고, commit을 수행
-            Member lazyWrite1 = new Member(150L, "A");
-            Member lazyWrite2 = new Member(160L, "B");
+            //Member lazyWrite1 = new Member(150L, "A");
+            //Member lazyWrite2 = new Member(160L, "B");
 
             //em.persist(lazyWrite1);
             //em.persist(lazyWrite2);
 
-            System.out.println("========= query 전송 기준선 ============");
+            //System.out.println("========= query 전송 기준선 ============");
 
             // 이렇게 lazyWritting을 사용하는 이유
             // - sql은 결국 DB에서 commit을 수행하기 이전에만 존재하면 수행 가능
@@ -147,13 +147,13 @@ public class JpaMain {
 
 
             // * 엔터티 수정 - 변경 감지(Dirty Checking)
-            Member member150 = em.find(Member.class, 150L);
+            //Member member150 = em.find(Member.class, 150L);
 
-            member150.setName("ABC");
+            //member150.setName("ABC");
             //em.persist(member150);
             //JPA는 자바의 Collection처럼 사용하는 것을 컨셉으로 가짐
             // -> collection객체를 통해 데이터 수정 후 따로 저장하는 과정을 가지지 않는 것처럼 JPA 또한 마찬가지로 설계됨
-            System.out.println("=======================");
+            //System.out.println("=======================");
 
             //1. JPA는 트랜잭션의 commit() 시점에 내부적으로 flush가 호출됨()
             //2. 1차 캐시 내의 @Id, 엔터티와 스냅샷을 비교
@@ -182,11 +182,11 @@ public class JpaMain {
             //    -> 이를 방지하고자 기본적으로 flush를 호출하도록 설계됨
             // 3. JPQL 쿼리 실행 - 플러시 자동 호출
 
-            Member memberFlush = new Member(200L, "memberFlush");
+            //Member memberFlush = new Member(200L, "memberFlush");
             //em.persist(memberFlush);
-            em.flush();
+            //em.flush();
             
-            System.out.println("========== flush() / commit() 쿼리 확인 선 =============");
+            //System.out.println("========== flush() / commit() 쿼리 확인 선 =============");
             //commit() 시점 이전에 query가 DB에 바로 반영되는 것을 확인 가능
 
             // * Flush 모드 옵션
@@ -208,22 +208,22 @@ public class JpaMain {
             // '영속' 상태의 '엔터티'가 영속성 컨텍스트에서 분리 (detached) -> 영속성 컨텍스트가 제공하는 기능 (1차캐시에 저장된 엔터티를 활용하는) 사용 불가능
 
             // 방법
-            Member member150B = em.find(Member.class, 150L); // DB에서 조회한 데이터를 1차캐시에 저장 -> 영속
-            member.setName("AAAAA"); //값 변경 -> DirtyChecking -> 영속성 컨텍스트를 활용한 기능 사용 가능
+            //Member member150B = em.find(Member.class, 150L); // DB에서 조회한 데이터를 1차캐시에 저장 -> 영속
+            //member.setName("AAAAA"); //값 변경 -> DirtyChecking -> 영속성 컨텍스트를 활용한 기능 사용 가능
 
             // 1. em.detach(entity)
             //   - 특정 엔터티만 준영속 상태로 전환
             //이제 영속성 컨텍스트에서 삭제되므로 JPA에서 관리하지 않음 -> commit() 수행 시 아무 일도 일어나지 않음 + update 쿼리 나가지 않음
-            em.detach(member150B);
+            //em.detach(member150B);
 
             // 2. em.clear()
             //   - EntityManager 내의 영속성 컨텍스트의 엔터티들을 통쨰로 날려버림
-            em.clear();
-            Member member150C = em.find(Member.class, 150L); // 날아간 엔터티를 다시 DB에서 불러오므로 1차캐시에 저장하며 '영속'
+            //em.clear();
+            //Member member150C = em.find(Member.class, 150L); // 날아간 엔터티를 다시 DB에서 불러오므로 1차캐시에 저장하며 '영속'
 
             // 3. em.close()
             //   - 영속성 컨텍스트를 아예 닫아버리는 방법
-            em.close();
+            //em.close();
 
             tx.commit();
         } catch (Exception e) {

@@ -225,12 +225,19 @@ public class JpaMain {
             //   - 영속성 컨텍스트를 아예 닫아버리는 방법
             //em.close();
 
+            // * 기본 키 관련
+            BasicKeyMappingMember basicKeyMappingMember = new BasicKeyMappingMember();
+            basicKeyMappingMember.setName("SEQUENCE");
+            // ** H2DB 버전에 따라서 IDENTITY의 버그 발생 -> DB url에 MODE=LEGACY 추가 후 해결
+
+            em.persist(basicKeyMappingMember);
+
             tx.commit();
         } catch (Exception e) {
             tx.rollback();
         } finally {
             em.close();
-            emf.close();
         }
+        emf.close();
     }
 }

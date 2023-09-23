@@ -13,12 +13,12 @@ import javax.persistence.*;
  */
 
 @Entity
-//@SequenceGenerator(name = "member_seq_generator", sequenceName = "member_seq")
+//@SequenceGenerator(name = "member_seq_generator", sequenceName = "member_seq", initialValue = 1, allocationSize = 50)
 @TableGenerator(
-        name = "MEMBER_SEQ_GENERATOR",
-        table = "MY_TABLE_SEQUENCE",
-        pkColumnValue = "MEMBER_SEQ",
-        allocationSize = 1
+        name = "TABLE_MEMBER_SEQUENCE_GENERATOR",
+        table = "MY_SEQUENCES",
+        pkColumnValue = "TABLE_MEMBER_SEQ",
+        allocationSize = 50
 )
 public class BasicKeyMappingMember {
 
@@ -45,13 +45,79 @@ public class BasicKeyMappingMember {
     //       결과 - create 실행 drop 후 'Hibernate: create sequence member_seq start with 1 increment by 50'
     //           - table 생성 후 'call next value for member_seq'
     //4. GenerationType.TABLE : 테이블 전략. '키 생성 전용 테이블'을 두고 DB 시퀀스를 흉내내는 방법
-    //   - 장점 : 모든 데이터베이스에 적용 가능 / 단점 : 별도의 테이블 구성, DB를 테이블을 직접 사용해야하는 과정에서의 문제발생가능성, 성능
+    //   - 장점 : 모든 데이터베이스에 적용 가능
+    //   - 단점 : 별도의 테이블 구성, DB를 테이블을 직접 사용해야하는 과정에서의 문제발생가능성 SELECT + UPDATE 쿼리로 seq를 가져오므로, SEQUENCE 전략에 비해 1번 더 통신한다고 함
+    // *** 현재 H2DB 버전 호환 문제인지, @TableGenerator의 name 속성의 DB sequence가 생성되지 않음. or DB에 미리 생성해 존재해야하거나 or 이전 @SequenceGenerator의 시퀀스와 중복되는 과저에서 문제가 생긴거라 예상
     //@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "member_seq_generator")
-    @GeneratedValue(strategy = GenerationType.TABLE, generator = "MEMBER_SEQUENCE_GENERATOR")
+    @GeneratedValue(strategy = GenerationType.TABLE, generator = "TABLE_MEMBER_SEQUENCE_GENERATOR")
+    //@GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     // ******* int는 0이 존재하므로 X
     // Integer보다 Long이 공간을 2배 차지하겠지만, 전체 어플리케이션 수준에선 사용비용이 매우 적음
     // + 10억이 넘어갈 때, Integer에서 Long으로 타입을 바꾸는 것이 오히려 더 힘듦
+
+    /**
+     * IDENTITY 전략의 특징
+     * INSERT query가 DB로 날아가면, 그 때 DB에서 값을 세팅해줌
+     * DB에 들어가 봐야 생성된 ID의 값을 확인할 수 있음
+     * JPA의 경우, 영속성 컨텍스트에서 entity가 관리되기 위해선 무조건 'Primary key' 값이 있어야함 - 1차캐시의 @Id 컬럼의 값들
+     * but, IDENTITY의 경우 DB에 entity가 등록되어 들어가봐야, *즉 INSERT 쿼리가 DB에서 수행된 후에 * 해당 값을 확인할 수 있음
+     * -> JPA는 key에 대한 값이 없으므로 DB자체에 등록하지 못하는 충돌이 발생
+     * ->>> JPA는 IDENTITY 전략에 대해서는 persist()를 호출하는 시점에 DB에 INSERT 쿼리를 날려버림
+     *      cf) 일반적으로는 commit() 시점에 INSERT 쿼리가 날아감
+     * 실제 예시
+     * ==== IDENTITY 전략 persist() 전 INSERT 쿼리 확인용 ===
+     * Hibernate:
+     *     /* insert hellojpa.BasicKeyMappingMember
+     *        insert into BasicKeyMappingMember (id,name) values (*** null,?)
+     *        basicKeyMappingMember.id = 1
+     * ==== IDENTITY 전략 persist() 후 INSERT 쿼리 확인용 ===
+     *
+     *  -> 1. 즉, JPA가 쿼리를 보낼 때에는 pk의 값을 null로 보내고
+     *     2. DB에서 generatedValue (Mysql일 경우 auto_increment)를 통해 값을 등록한 후
+     *     3. JDBC driver 내부의 insert 쿼리 후 값을 바로 리턴받는 로직을 통해
+     *     4. INSERT 수행 후 DB로부터 바로 값을 받아올 수 있음 ***** JPA가 DB로의 select 쿼리 수행이 필요하지 않은 이유
+     *     5. JPA 또한 로직을 통해 이 값을 받아와 세팅하고 *** 영속성 컨텍스트의 pk값으로 활용
+     *     **** 즉, lazyWriting의 장점을 활용할 수는 없음 (그러나 buffering 한 후에 writing하는게 크게 메리트는 없다고 함)
+     */
+
+    /**
+     * SEQUENCE 전략의 특징
+     * - sequence 오브젝트 또한 DB가 관리하는 것
+     * - H2DB의 경우, 시퀀스에서 실제 시퀀스 오브젝트와 현재 값을 알 수 있음
+     * *** em.persist()의 경우, 무조건 영속성 컨텍스트에 pk의 값이 존재해야함
+     * -> 먼저 sequence를 가져와야 pk 값으로 사용 가능
+     * -> em.persist()가 진행되기 전에 sequence로부터 값을 가져오도록 설계됨 -> 'call next value for member_seq'
+     * -> 이후 가져온 값을 pk 값으로 사용해 영속성 컨텍스트에 저장하고 persist() 진행
+     * -> *** INSERT 쿼리는 아직 DB에 전달되지 않은 상황
+     * -> *** buffering 및 lazyWriting에 관련된 기술 사용 가능
+     * -> *** 실제 commit()이 수행되는 시점에 INSERT 쿼리 실행
+     *
+     * *** 즉, IDENTITY는 DB에서 INSERT 쿼리를 수행해야 값을 가져올 수 있지만,
+     * SEQUENCE는 DB에서 sequence값만 슬쩍 가져오는 방식을 통해 쿼리 자체를 persist()시점에 수행하지 않아도 됨
+     * -> lazyWriting의 장점 활용 가능
+     *
+     * * 그러나, commit()을 통한 INSERT 쿼리 이전에, 엔터티들의 persist()들이 쌓인다면?
+     * -> call next value를 통해 'DB에서' sequence를 가져오면서 네트워크를 사용하므로 성능문제의 발생 가능성
+     * -> 미리 50개의 sequence를 가져오는 방식
+     * -> * 즉, call next value 한번에 미리 50개의 사이즈를 미리 DB에 올려놓고, 메모리에서는 1개씩 사용하는 방법
+     * *** 여러 웹서버가 있어도, 동시성 문제 없이 다양한 문제가 해결 가능
+     *
+     * *** 한 번의 persist()가 호출되더라도 call next value를 최초에 2번 호출하는 이유
+     * -> 첫 호출은 DB의 seq값을 1로 세팅 (더미 세팅)
+     * -> 미리 50개를 땡겨써야 하므로 다시 call을 통해 50개를 더 가져와 51으로 세팅
+     * -> 즉, DB에서 생성한 seq와 어플리케이션(메모리)에서 실제 사용한 seq의 수는 다를 수 있음
+     * *** 첫 persist()는 1, 51의 'DB 시퀀스'를 메모리에 가져오고 , 그 이후는 DB 통신없이 '메모리'만을 사용
+     * -> 이후 실제 메모리에서 사용하는 seq가 51이 되면, DB는 여유분을 위해 50개를 추가로 확보
+     */
+
+    /**
+     * TABLE 전략의 특징
+     * - SEQUENCE 전략과 비슷
+     * - 테이블에 seq값을 50개를 미리 인크리먼트하고, 웹서버에서는 50개를 쭉 사용
+     * * 웹서버가 여러대고, 동시호출한다면 문제가 없을까?
+     * -> 미리 확보하는 개념이므로, 웹서버 여러대가 동시요청을 하더라도 동시성 문제없음
+     */
 
     private String name;
 

@@ -226,11 +226,25 @@ public class JpaMain {
             //em.close();
 
             // * 기본 키 관련
-            BasicKeyMappingMember basicKeyMappingMember = new BasicKeyMappingMember();
-            basicKeyMappingMember.setName("SEQUENCE");
+            BasicKeyMappingMember basicKeyMappingMember1 = new BasicKeyMappingMember();
+            basicKeyMappingMember1.setName("SEQUENCE1");
+            BasicKeyMappingMember basicKeyMappingMember2 = new BasicKeyMappingMember();
+            basicKeyMappingMember2.setName("SEQUENCE2");
+            BasicKeyMappingMember basicKeyMappingMember3 = new BasicKeyMappingMember();
+            basicKeyMappingMember3.setName("SEQUENCE3");
             // ** H2DB 버전에 따라서 IDENTITY의 버그 발생 -> DB url에 MODE=LEGACY 추가 후 해결
 
-            em.persist(basicKeyMappingMember);
+            System.out.println("==== persist() 전 INSERT 쿼리 확인용 ===");
+
+            em.persist(basicKeyMappingMember1);
+            em.persist(basicKeyMappingMember2);
+            em.persist(basicKeyMappingMember3);
+
+            System.out.println("basicKeyMappingMember1.id = " + basicKeyMappingMember1.getId());
+            System.out.println("basicKeyMappingMember2.id = " + basicKeyMappingMember2.getId());
+            System.out.println("basicKeyMappingMember3.id = " + basicKeyMappingMember3.getId());
+
+            System.out.println("==== persist() 후 INSERT 쿼리 확인용 ===");
 
             tx.commit();
         } catch (Exception e) {

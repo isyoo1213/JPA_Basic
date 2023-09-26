@@ -1,5 +1,9 @@
 package jpashop.jpabook;
 
+import jpashop.jpabook.OneToManySample.MemberB;
+import jpashop.jpabook.OneToManySample.TeamB;
+import jpashop.jpabook.domainV2.OrderItemV2;
+import jpashop.jpabook.domainV2.OrderV2;
 import jpashop.jpabook.sampledomain.MemberA;
 import jpashop.jpabook.sampledomain.Team;
 
@@ -126,16 +130,16 @@ public class JpaMain {
             memberA2.setUsername("memberA2");
             em.persist(memberA2);
 
-            Team teamB = new Team();
-            teamB.setName("TeamB");
+            Team teamA2 = new Team();
+            teamA2.setName("TeamB");
             // 1. 연관관계 주인이 아닌 entity의 필드에서 추가 - 즉, 역방향만 연관관계 설정
             // -> Team 엔터티의 members 필드는 결국 읽기 전용이므로 update쿼리를 날리지 않음
             // *** 순수 객체 상태를 고려해 양 방향 모두 설정한 경우, flush/clear 없이 1차 캐시에서 가져오더라도 안전하게 사용 가능
-            teamB.getMembers().add(memberA2);
-            em.persist(teamB);
+            teamA2.getMembers().add(memberA2);
+            em.persist(teamA2);
 
             // 2. 연관관계 주인인 entity의 필드에서 추가 - 즉, 정방향만 연관관계 설정
-            memberA2.changeTeam(teamB);
+            memberA2.changeTeam(teamA2);
 
             /**
              * DB에서 member 테이블을 조회하면, TEAM_ID, 즉 FK가 업데이트 되지 않음
@@ -174,7 +178,7 @@ public class JpaMain {
              *
              */
 
-            Team findTeamB = em.find(Team.class, teamB.getId());
+            Team findTeamB = em.find(Team.class, teamA2.getId());
             //flush/clear()를 하지 않았을 경우, 이미 1차캐시에 존재하는 순수한 객체의 정보를 그대로 처리 -> select 쿼리 안나감
             //flush/clear()를 했을 경우, JPA 내부 로직에 따라서 member/team을 DB에서 처리를 거쳐 가져오므로 1차 캐시의 순수한 객체 정보가 아닌 업데이트된 정보를 가져옴
 
@@ -193,6 +197,74 @@ public class JpaMain {
             //System.out.println("members = " + findMembers2);
 
             System.out.println("======= 양방향 연관관계 주인인 엔터티에서 추가했을 때에도 생기는 문제 =======");
+
+            em.flush();
+            em.clear();
+
+            /**
+             * sudo 정도로만 구현해보기
+             */
+            OrderV2 orderV2 = new OrderV2();
+            //1. 역방향으로 추가해준 방법을 사용
+            orderV2.addOrderItem(new OrderItemV2());
+
+            em.persist(orderV2);
+
+            //2. 정방향으로 역방향 추가없이 그대로 사용
+            OrderItemV2 orderItemV2 = new OrderItemV2();
+            orderItemV2.setOrder(orderV2);
+
+            em.persist(orderItemV2);
+            /**
+             * ***즉, 양뱡향 연관관계가 아니더라도, Application 개발에는 아무 문제가 없음
+             * 그럼에도 사용하는 이유
+             * 1. 개발상의 편의
+             * 2. 연관관계 주인이 아닌 경우 조회밖에 할 수 없는 단점 극복을 위해 사용 - 이 부분 확실히 체크해보기
+             * 3. JPQL에서 사용할 변수들을 위해
+             */
+
+            /**
+             * '일대다' '단방향' 연관관계 매핑
+             * - 객체관점 : 1 쪽에서 FK를 관리하는 경우
+             * -> *** N 엔터티에서 따로 FK를 위한 필드를 가지고 있지 않아도, FK를 인지하고 row를 생성해 update 쿼리를 추가적으로 보내 구성해준다.
+             * *** @JoinColumn을 사용하지 않는 경우 -> JoinTable을 추가적으로 생성해서 사용 ex) create table Team_Member
+             * -> 이 경우 필드에 @JoinTable()을 통해 설정정보를 구성해줄수도 있음 - 추천하지 않음
+             *
+             * 단점
+             * ***** Entity가 관리하는 FK가 다른 Table에 있음
+             * 추가적인 UPDATE SQL 실행
+             */
+            /* 쿼리
+            Hibernate:
+                 create one-to-many row jpashop.jpabook.OneToManySample.TeamB.members
+                 / update MEMBER_B  set  TEAM_B_ID=?  where   MEMBER_B_ID=? */
+
+            MemberB memberB = new MemberB();
+            memberB.setUsername("memberB");
+
+            em.persist(memberB);
+
+            TeamB teamB = new TeamB();
+            teamB.setName("teamB");
+
+            teamB.getMembers().add(memberB);
+
+            em.persist(teamB);
+
+            /**
+             * JPA 스펙에서 지원함에도, 실무에서 이 일대다 연관관계를 사용하지 않는 이유
+             * - 실제로 조작한 Entity와 다른 Entity에도 쿼리가 날아가므로 혼동스러울 수 있음
+             * + * '다대일''양방향' 연관관계처럼 주인을 N 쪽에 잡으면, '객체적'으로 조금 손해를 볼 지라도(member -> team으로 실제로 조회할 일이 없더라도) 이러한 혼란을 제거
+             * -> ORM보다 DB 테이블에 맞춰서 유지보수의 편의성을 높이는 trade off
+             */
+
+            /**
+             * '일대다' '양방향' 연관관계
+             * - JPA 스펙에서 지원 X
+             * - N 엔터티의 @ManyToOne 컬럼에서 @JoinColumn(insertable = false, updatable = false)로 '읽기전용'으로 만들어줄 순 있음
+             * - 어느 방향에서 FK 수정이 들어올지 모르면 예측이 불가하므로, 읽기만 하고 변경사항을 적용하지 못하도록 적용
+             * - 실제로 DB에서 오류를 뱉어주지 않으므로 꼬였을 경우 찾기 힘들 수 있음
+             */
 
             tx.commit();
         } catch (Exception e) {

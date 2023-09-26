@@ -47,4 +47,18 @@ public class MemberA {
     public void setTeam(Team team) {
         this.team = team;
     }
+
+    public void changeTeam(Team team) {
+        this.team = team;
+        team.getMembers().add(this);
+    }
+
+    @Override
+    public String toString() {
+        return "MemberA{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", team=" + team + //결국 team.toString()을 호출한다는 의미
+                '}';
+    }
 }

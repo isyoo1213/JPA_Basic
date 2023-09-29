@@ -21,6 +21,10 @@ public class OrderV2 {
 
     private OrderStatusV2 status;
 
+    @OneToOne
+    @JoinColumn(name = "DELIVERY_ID")
+    private Delivery delivery;
+
     /**
      * 비즈니스적으로 의미가 있으므로 충분히 객체 양방향 연관관계 설정해줄만함
      */
@@ -63,6 +67,4 @@ public class OrderV2 {
     public void setStatus(OrderStatusV2 status) {
         this.status = status;
     }
-
-
 }

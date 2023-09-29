@@ -1,6 +1,8 @@
 package jpashop.jpabook.domainV2;
 
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "ITEMV2")
@@ -16,6 +18,9 @@ public class ItemV2 {
     private int price;
 
     private int stockQuantity;
+
+    @ManyToMany(mappedBy = "items")
+    private List<Category> categories = new ArrayList<>();
 
     public Long getId() {
         return id;

@@ -1,4 +1,4 @@
-package jpashop.jpabook.manytomanySample;
+package jpashop.jpabook.ManyToManySample;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;

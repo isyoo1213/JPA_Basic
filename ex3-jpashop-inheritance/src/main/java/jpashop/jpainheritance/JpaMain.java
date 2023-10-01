@@ -59,6 +59,19 @@ public class JpaMain {
              * 즉, 상속 매핑의 경우에도 JPA는 INSERT가 2번 필요할 경우든, 조회시 JOIN이 필요한 경우 모두 처리해줌
              */
 
+            /**
+             * 상속관계 매핑
+             * 2. SingleTable
+             * - 단순하게 부모 table에 모든 column을 생성하고 + ** DTYPE, 즉 자식 Entity의 유형 column까지 자동으로 생성
+             *   *** @DiscriminatorColumn을 추가하지 않아도, 자동으로 생성
+             *   + 자식 Entity에서는 @DiscriminatorValue를 통해 '값' 변경 가능
+             * - INSERT 쿼리가 1번만 들어가므로 성능 이점
+             * - SELECT 쿼리 또한 JOIN이 필요 없으므로 성능 이점
+             *
+             * *** 상속매핑에있어 JPA의 장점
+             * @Inheritance(strategy = InheritanceType.xxx)를 통해 쿼리 수정 없이 적은 비용으로 변경이 용이함
+             */
+
             tx.commit();
         } catch (Exception e) {
             tx.rollback();

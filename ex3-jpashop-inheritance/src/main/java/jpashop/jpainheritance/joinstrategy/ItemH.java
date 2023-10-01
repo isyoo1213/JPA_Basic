@@ -4,8 +4,8 @@ import javax.persistence.*;
 
 @Entity
 @Table(name = "ITEMH")
-@Inheritance(strategy = InheritanceType.JOINED)
-@DiscriminatorColumn()
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+//@DiscriminatorColumn()
 /**
  * @DiscriminatorColumn
  * - 부모 엔터티의 테이블에 자식 테이블의 정보를 컬럼으로 표시해주는 방법

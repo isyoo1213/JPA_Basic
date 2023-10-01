@@ -4,7 +4,7 @@ import javax.persistence.*;
 
 @Entity
 @Table(name = "ITEMH")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
 //@DiscriminatorColumn()
 /**
  * @DiscriminatorColumn
@@ -15,7 +15,7 @@ import javax.persistence.*;
  * 장점
  * - ITEM, 즉 부모 테이블만 조회하더라도, 데이터의 자식 entity 유형을 파악할 수 있다
  */
-public class ItemH {
+public abstract class ItemH {
 
     @Id @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "ITEMH_ID")

@@ -3,11 +3,13 @@ package jpashop.jpainheritance;
 import jpashop.jpainheritance.inheritancemapping.Album;
 import jpashop.jpainheritance.inheritancemapping.ItemH;
 import jpashop.jpainheritance.inheritancemapping.Movie;
+import jpashop.jpainheritance.mappedsuperclass.MemberM;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
 import javax.persistence.Persistence;
+import java.time.LocalDateTime;
 
 public class JpaMain {
     public static void main(String[] args) {
@@ -144,6 +146,44 @@ public class JpaMain {
              * - 자식 테이블을 통합해서 쿼리하기 어려움
              * -> 시스템의 '변경'의 관점에서 매우 불리
              */
+
+            /**
+             * MappedSuperclass - 매핑정보 상속
+             * 상속관계가 아닌 테이블 사이에서, 공통적으로 사용해야하는 속성, 매핑 정보가 필요한 경우
+             *    ex) createdDate, lastModifiedBy... 등등의 메타정보
+             * 부모 클래스에 해당 속성들을 필드로 생성한 후, @MappedSuperclass 어노테이션만 붙여주면, 각각의 Table에 column이 생성됨
+             * - 필드에서는 실제 추가적인 속성 정보들을 자동화로 추가함
+             * - immutable한 테이블이 아니면, 이러한 메타정보는 매우 필수적임
+             * - *** 상속관계 매핑 X + Entity X + Table과 매핑 X -> *** 실제 Table이 생성되지 않음
+             * - 조회/검색 불가 ( em.find(BaseEntity) 불가)
+             *   cf) 상속관계 매핑의 경우 - em.find(ItemH.class, album1.getId())로 다형성 조회 가능함
+             * - 부모클래스를 상속받는 '자식 클래스 Entity'에만 매핑 정보 제공
+             * - *** 직접 생성해서 사용하는 경우는 없으므로, '추상 클래스' 권장
+             *
+             * *** Entity 클래스가 상속 가능한 클래스
+             * 1. 다른 @Entity 클래스
+             * 2. @MappedSuperclass로 지정한 클래스
+             */
+
+            MemberM member1 = new MemberM();
+            member1.setUsername("User1");
+            member1.setCreatedBy("Yoo");
+            member1.setCreatedDate(LocalDateTime.now());
+
+            em.persist(member1);
+            /* Hibernate:
+                create table MEMBERM (
+                   MEMBERM_ID bigint not null,
+                    createdBy varchar(255),
+                    createdDate timestamp,
+                    lastModifiedBy varchar(255),
+                    lastModifiedDate timestamp,
+                    username varchar(255),
+                    TEAMM_ID bigint,
+                    primary key (MEMBERM_ID) ) */
+
+            em.flush();
+            em.clear();
 
             tx.commit();
         } catch (Exception e) {

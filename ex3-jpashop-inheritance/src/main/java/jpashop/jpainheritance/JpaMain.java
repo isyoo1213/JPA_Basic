@@ -38,7 +38,26 @@ public class JpaMain {
             em.clear();
 
             Movie findMovie1 = em.find(Movie.class, movie1.getId());
+            /* 실제 쿼리
+            Hibernate:
+                select
+                    movie0_.ITEMH_ID as itemh_id1_2_0_,
+                    movie0_1_.name as name2_2_0_,
+                    movie0_1_.price as price3_2_0_,
+                    movie0_.actor as actor1_3_0_,
+                    movie0_.director as director2_3_0_
+                from
+                    Movie movie0_
+                inner join // -> inner 조인을 통해 연결된 테이블의 정보를 가져옴
+                    ITEMH movie0_1_
+                        on movie0_.ITEMH_ID=movie0_1_.ITEMH_ID
+                where
+                    movie0_.ITEMH_ID=?
+             */
             System.out.println("findMovie1 = " + findMovie1);
+            /**
+             * 즉, 상속 매핑의 경우에도 JPA는 INSERT가 2번 필요할 경우든, 조회시 JOIN이 필요한 경우 모두 처리해줌
+             */
 
             tx.commit();
         } catch (Exception e) {

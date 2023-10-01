@@ -1,4 +1,4 @@
-package jpashop.jpainheritance.joinstrategy;
+package jpashop.jpainheritance.inheritancemapping;
 
 import javax.persistence.DiscriminatorValue;
 import javax.persistence.Entity;

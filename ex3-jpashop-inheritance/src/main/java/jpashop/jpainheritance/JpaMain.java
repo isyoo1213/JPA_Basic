@@ -1,8 +1,8 @@
 package jpashop.jpainheritance;
 
-import jpashop.jpainheritance.joinstrategy.Album;
-import jpashop.jpainheritance.joinstrategy.ItemH;
-import jpashop.jpainheritance.joinstrategy.Movie;
+import jpashop.jpainheritance.inheritancemapping.Album;
+import jpashop.jpainheritance.inheritancemapping.ItemH;
+import jpashop.jpainheritance.inheritancemapping.Movie;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;

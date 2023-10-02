@@ -18,7 +18,8 @@ public class Member extends BaseEntity {
     private String zipcode;
 
 
-    @ManyToOne
+    //@ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "TEAMP_ID")
     private TeamP team;
 

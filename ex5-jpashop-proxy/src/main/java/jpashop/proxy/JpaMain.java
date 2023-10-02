@@ -5,6 +5,7 @@ import jpashop.proxy.domain.TeamP;
 import org.hibernate.Hibernate;
 
 import javax.persistence.*;
+import java.util.List;
 
 public class JpaMain {
     public static void main(String[] args) {
@@ -263,6 +264,99 @@ public class JpaMain {
             System.out.println("refMember1.getClass().getName() = " + refMember1.getClass().getName());
             //refMember1.getClass().getName() = jpashop.proxy.domain.Member$HibernateProxy$nt51SCmA
             //getReference()로 Proxy시 획득 후, 초기화가 일어났으므로 proxy 그대로 사용
+
+            em.flush();
+            em.clear();
+
+            /**
+             * LazyLoading
+             * 상황 1.
+             * 다시 돌아와서, 비즈니스 로직 상 Member를 조회할 때, Team을 가져오지 않고 Member만 조회할 수 없을까?
+             * - @ManyToOne(fetch = FetchType.LAZY) - 지연로딩
+             * - Member만 조회했음에도, Team은 Proxy 객체로 들고있음
+             * - 이후 실제 DB 접근이 필요한 순간 영속성 컨텍스트를 통해 '초기화'가 이루어지고 DDL로 DB에 접근하고 '실제 Entity'가 참조됨
+             *   + Proxy로 먼저 생성됐으므로, ** '초기화'로 실제 entity가 참조되어도, "==" 비교 용이를 위해 Proxy 타입을 들고있음
+             *
+             */
+
+            Member findMemberA = em.find(Member.class, member1.getId());
+
+            //1. fetch를 걸어놓은 상태에서 Member만 조회
+            System.out.println("findMemberA.getTeam().getClass() = " + findMemberA.getTeam().getClass());
+            //findMemberA.getTeam().getClass() = class jpashop.proxy.domain.TeamP$HibernateProxy$4TjO93HF
+            // -> Team에 대한 정보는 Proxy로 생성해 들고있음
+            
+            System.out.println("================================================================");
+        
+            //2. 실제로 Team proxy에서 데이터 접근이 필요한 경우
+            System.out.println("findMemberA.getTeam().getName() = " + findMemberA.getTeam().getName()); // 초기화가 일어나는 시점
+            System.out.println("findMemberA.getTeam().getClass() = " + findMemberA.getTeam().getClass());
+            //findMemberA.getTeam().getName() = team1
+            //findMemberA.getTeam().getClass() = class jpashop.proxy.domain.TeamP$HibernateProxy$Sgmkoocp
+            //영속성 컨텍스트의 '초기화'를 통해 DB에 쿼리를 수행하고, 실제 Entity를 구성해서 반환
+            // + Proxy로 먼저 생성됐으므로, ** '초기화'로 실제 entity가 참조되어도, "==" 비교 용이를 위해 Proxy 타입을 들고있음
+
+            /**LazyLoading
+             * 상황2. 비즈니스 로직 상, Member와 Team을 동시에 조회하는 경우가 많다면?
+             * - LazyLoading일 경우, SELECT 쿼리가 2번 나가므로 비효율적
+             * - @ManyToOne(fetch = FetchType.EAGER) - 즉시로딩
+             * - *** Member에 대한 SELECT 쿼리자체가 Team과 JOIN한 쿼리가 날아감
+             *   -> 한번에 Member/Team을 한번에 땡겨오므로, Proxy가 필요없음
+             * - Team의 class는 Proxy가 아닌 실제 Entity
+             * - '초기화' 자체가 필요 없어짐 - Proxy가 아니므로
+             */
+
+            //findMemberA.getTeam().getClass() = class jpashop.proxy.domain.TeamP
+            //================================================================
+            //findMemberA.getTeam().getName() = team1
+            //findMemberA.getTeam().getClass() = class jpashop.proxy.domain.TeamP
+
+            /** 매우 중요!!!
+             * Lazy/Eager Loading 주의점
+             * !!! 실무에서는 'LazyLoading'만 사용 !!!
+             * 1. 즉시 로딩을 사용하면 예상하지 못한 SQL이 발생
+             *    - JOIN 테이블이 1~2개면 상관없지만, 실제로는 매우 많은 테이블이 연관관계로 구성되어있을 수 있다.
+             * 2. 즉시 로딩은 JPQL에서 N+1 문제를 일으킨다.
+             *    - ** em.find()는 명확한 PK를 사용하므로 JPA가 내부적으로 최적화 가능
+             *    - JPQL은 그대로 SQL로 번역이 되므로 Member 모두 긁어옴
+             *    -> 가져오니, Eager를 만남 -> 어라, Team 모두 다 긁어와야겠네
+             *    -> Member의 개수 Team 정보를 채워 Eager를 만족시키기위해 별도의 쿼리를 다시 날림
+             *    -> *** 즉, 1개의 쿼리를 날렸는데 추가 쿼리가 N개가 나가는 것을 N+1 문제라고 함
+             * 해결 - 우선 모두 LazyLoading으로 세팅
+             *      1. JPQL로 FETCH/JOIN을 통해 runtime 시점에 동적으로 구성해주는 방법 -> 주로 사용하게 될 것
+             *      2. EntityGraph 어노테이션
+             *      3. BatchSize
+             * 3. @ManyToOne, @OneToOne의 X:1은 기본이 EAGER -> LAZY로 설정해줘야함
+             *    + @OneToMany의 default는 LAZY
+             */
+
+            em.flush();
+            em.clear();
+
+
+            TeamP team2 = new TeamP();
+            team2.setName("team2");
+            em.persist(team2);
+
+            member2 = em.find(Member.class, member2.getId());
+            member2.changeTeam(team2);
+            em.persist(member2);
+
+            em.flush();
+            em.clear();
+
+            //JPQL에서의 문제
+            //List<Member> members1 = em.createQuery("select m from Member m", Member.class)
+            //        .getResultList();
+            //1. JPQL은 그냥 SQL 날려버림 : SELECT * FROM MEMBER;
+            //2. DB에서 모든 MEMBER를 긁어옴
+            //3. EAGER -> TEAM도 가져와야겠네 : SELECT * FROM TEAM WHERE TEAM_ID = MEMBER.ID
+            //실제 쿼리를 보면 Member를 가져온 후 Team을 가져오는 쿼리가 2번 나감
+
+            //fetch join으로 해결하기
+            List<Member> members1 = em.createQuery("select m from Member m join fetch m.team", Member.class)
+                    .getResultList();
+            // -> Member를 긁어오는 쿼리에 inner join으로 Team 정보도 가져옴
 
             tx.commit();
         } catch (Exception e) {

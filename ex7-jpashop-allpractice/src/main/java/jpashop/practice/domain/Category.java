@@ -4,6 +4,8 @@ import javax.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static javax.persistence.FetchType.LAZY;
+
 @Entity
 public class Category extends ItemA {
 
@@ -16,10 +18,12 @@ public class Category extends ItemA {
     /**
      * * tree 처럼 내려가는 카테고리를 셀프로 구성하는 방식
      */
-    @ManyToOne
+    //static import를 통해 FetchType까지 줄여버리기
+    @ManyToOne(fetch = LAZY)
     @JoinColumn(name = "PARENT_ID")
     private Category parent;
 
+    //OneToMany는 LAZY가 Default
     @OneToMany(mappedBy = "parent")
     private List<Category> childs = new ArrayList<>();
 

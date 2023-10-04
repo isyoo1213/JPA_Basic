@@ -1,6 +1,7 @@
 package jpashop.type;
 
 import jpashop.type.embeddedtype.Address;
+import jpashop.type.embeddedtype.AddressEntity;
 import jpashop.type.embeddedtype.Member;
 import jpashop.type.embeddedtype.Period;
 
@@ -9,6 +10,8 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
 import javax.persistence.Persistence;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
 
 public class JpaMain {
     public static void main(String[] args) {
@@ -255,6 +258,224 @@ public class JpaMain {
             System.out.println("(addressA.equals(addressB)) = " + (addressA.equals(addressB)));
             //1. equals()를 '재정의'하지 않았다면 -> equals()의 default는 "==" 비교와 동일 *** -> false
             //2. equals()를 재정의 했다면 -> true
+
+
+            /**
+             * 값 타입 컬렉션
+             * - 기존까진 연관관계의 'Entity'들을 collection인 List로 사용한 예제들
+             * - *** 일반적인 RDB는 JAVA의 collection구조를 Table 형식으로 구성하는 기능이 없음
+             *   -> 오직 Table 내의 '값'만 처리할 수 있는 패러다임의 차이
+             *   cf) json으로 변환 후 활용하는 최신 DB는 예외
+             * - *** 개념적으로는 '일대다' '연관관계'와 유사 -> 별도의 테이블로 물리적 구성
+             * - 객체 관점 : 값 타입 컬렉션을 Entity의 필드처럼 들고 있을 수 있음
+             * - DB 관점 : 값 타입 컬렉션은 Entity의 Column이 아닌, '일대다' '연관관계'의 '별도 Table'로 물리적 구성
+             * -> *** 여튼, 이 값 타입의 Table에 식별자가 들어서면, Entity가 되어버림
+             * 결론
+             * *** Table로 구현 + FK를 통한 '연관관계'를 구성
+             * *** 임베디드 타입과 달리, 다른 Table을 구성함에도 LifeCycle을 공유
+             * -> 즉, '값 타입'이므로, 본인 스스로의 라이프사이클이 없음!!!
+             * -> 크게보면, Member의 username 등 다른 속성들도 '값 타입'이므로 Entity의 라이프사이클에 의존 -> 별도의 persist() 불필요
+             * -> *** '일대다/일대일''연관관계'의 cascade 옵션을 준 것과 비슷
+             *
+             * *** 값 타입 컬렉션은 '영속성 전이(Cascade) + 고아객체 제거' 기능을 필수로 가진다 !!!
+             */
+
+             /**
+              * 값 타입 컬렉션 사용하기
+              * - @ElementCollection(fetch = FetchType.LAZY) 으로 명시
+              * - @CollectionTable 으로 Table 이름 및 FK 지정
+              *   1. name 속성 - Table 이름
+              *   2. joinColumns = @JoinColumn(name = "FK 이름") - FK 지정
+              * - 임베디드 타입인 경우, 내부 필드에서 column 명들을 지정할 수 있음 or @AttributeOverrides
+              * - *** 임베디드 타입이 아닌 경우, Set<String>처럼 column이 하나인 경우 @Column을 통해 column 이름 지정
+              * 적용 후
+              * MEMBER 테이블 생성 - Address homeAddress -> city/street/zipcode column 생성
+              * FAVORITE_FOOD 테이블
+              * 1. 생성 - MEMBER_ID / FOOD_NAME
+              * 2. alter table FAVORITE_FOOD
+              *        add constraint FK4jahhidm3wiigyln9f29jff48
+              *        foreign key (MEMBER_ID) references MEMBER -> FK로 '연관관계' 설정
+              * ADDRESS_HISTORY 테이블
+              * 1. 생성 - MEMBER_ID / CITY / STREET / ZIP_CODE
+              * 2. alter table ADDRESS_HISTORY
+              *        add constraint FKqbwxv3je52hteuv53rxrs1a47
+              *        foreign key (MEMBER_ID) references MEMBER -> FK로 '연관관계' 설정
+              */
+
+            /**
+             * 값타입 컬렉션 정리
+             * - '값 타입'을 하나 이상 저장할 때 사용
+             * - @ElementCollection(fetch = FetchType.LAZY) / @CollectionTable 사용
+             * - DB는 컬렉션을 같은 Table에 저장할 수 없다
+             *   -> *** '일대다' '연관관계'를 형성하므로, '별도의 Table'로 풀어내야함
+             */
+
+            /**
+             * 값 타입 컬렉션 '저장' 에제
+             * *** 임베디드 타입과 달리, '다른 Table을 구성'함에도 LifeCycle을 공유
+             * -> 즉, '값 타입'이므로, 본인 스스로의 라이프사이클이 없음!!!
+             * -> 크게보면, Member의 username 등 다른 속성들도 '값 타입'이므로 Entity의 라이프사이클에 의존 -> 별도의 persist() 불필요
+             */
+            Member memberT1 = new Member();
+            memberT1.setUsername("memberT1");
+            //값 타입은 '불변 객체' + '동등성 비교' + 'equals() 재정의'를 꼭 기억하자
+            memberT1.setHomeAddress(new Address("homecityT1", "streetT1", "0000T"));
+
+            //Set<String> favoriteFoods 에 저장
+            memberT1.getFavoriteFoods().add("치킨T");
+            memberT1.getFavoriteFoods().add("족발T");
+            memberT1.getFavoriteFoods().add("피자T");
+
+            //List<Address> addressHistory 에 저장
+            //memberT1.getAddressHistory().add(new Address("oldcity1", "streetT1", "0000T"));
+            //memberT1.getAddressHistory().add(new Address("oldcity2", "streetT1", "0000T"));
+
+            // *** AddressEntity를 사용하는 경우
+            memberT1.getAddressHistory().add(new AddressEntity("oldcity1", "streetT1", "0000T"));
+            memberT1.getAddressHistory().add(new AddressEntity("oldcity2", "streetT1", "0000T"));
+
+            em.persist(memberT1);
+            // persist() 한 번으로 INSERT 되는 정보들
+            // 1. INSERT / Member Table에 Address homeAddress 정보 저장
+            // 2. INSERT / ADDRESS_HISTORY Table에 List<Address> addressHistory 정보 저장 x 2
+            // 3. INSERT / FAVORITE_FOOD Table에 Set<String> favoriteFoods 정보 저장 x 3
+            // *** 값 타입 컬렉션도 '값 타입'임을 생각하면서 '라이프 사이클'에 대한 의존성 꼭 확인하기
+
+            em.flush();
+            em.clear();
+
+            /**
+             * 값 타입 컬렉션 '조회' 예제
+             * - 상황 : 영속성 컨텍스트를 flush/clear한 후
+             * - em.find()를 실행하면, Member Table의 정보만 SELECT하는 쿼리가 나감
+             *   + Address homeAddress는 Member Table에 소속된 임베디드 타입이므로 같이 불러옴
+             *   + 값 타입 컬렉션들은 불러오지 않음
+             *   -> *** 즉, LazyLoading
+             * - Proxy 객체의 실제 값을 조회하는 시점에서야 SELECT 쿼리가 DB로 나감
+             * *** 즉, @ElementCollection(fetch = FetchType.LAZY)가 default임을 확인 가능
+             *
+             */
+            System.out.println("==================== 조회 START =====================");
+            Member findMemberT1 = em.find(Member.class, memberT1.getId());
+
+            // AddressEntity 사용을 위한 주석
+            //List<Address> findAddressHistory1 = findMemberT1.getAddressHistory();
+            //for (Address address : findAddressHistory1) {
+            //    System.out.println("address.getCity() = " + address.getCity());
+            //}
+
+            // AddressEntity 사용할 경우
+            List<AddressEntity> findAddressHistory1 = findMemberT1.getAddressHistory();
+            //for (Address address : findAddressHistory1) {
+            //    System.out.println("address.getCity() = " + address.getCity());
+            //}
+
+            Set<String> findFavoriteFoods1 = findMemberT1.getFavoriteFoods();
+            for (String food : findFavoriteFoods1) {
+                System.out.println("food = " + food);
+            }
+
+            /**
+             * 값 타입 컬렉션 '수정' 예제
+             * - *** '값 타입'은 'Immutable'함 + 추적불가함을 잊지 말 것!!!!
+             * -> '값 변경'의 관점이 아닌 '인스턴스 갈아끼우기'의 관점으로 접근할 것
+             *    + 불변 객체를 위해 Setter 막기 / private으로 숨기기가 되어있을 것
+             * 값 타입 컬렉션의 장점
+             * - 컬렉션의 값만 갈아끼워줘도, 실제 DELETE/INSERT DB 쿼리가 날아가면서 변경 가능 like Cascade(영속성 전이)
+             * String
+             * - Set<String>의 'String' 자체는 '값 타입' -> 변경하려하면 안됨!!!! ***
+             * - String의 특성 상, 컬렉션에서 remove() -> add()로 갈아끼우기
+             * 참조형 임베디드 타입 ***
+             * - remove() / add()로 갈아끼우기 위해선 갈아끼울 인스턴스를 찾아야함
+             * -> *** 기본적으로 '컬렉션'은 동등성비교인 equals()를 사용함!!! ***
+             * -> 조건 : equals() / hashCode()가 제대로 Overriding 됐다면 ***
+             * -> 기존에 생성했던 인스턴스를 그대로 new Address(...) 해주면, 인스턴스 내부의 '값'을 비교해서 갈아끼울 인스턴스를 찾음
+             */
+
+            //1. 임베디드 타입의 수정
+            //ex) memberT1의 Address homeAddress 값 변경
+            //findMemberT1.getHomeAddress().setCity("newhomecity1"); // XXXXXX
+            Address oldHomeAddress1 = findMemberT1.getHomeAddress();
+            findMemberT1.setHomeAddress(new Address("newhomecity1", oldHomeAddress1.getStreet(), oldHomeAddress1.getZipcode()));
+            // *** 값 타입은 '값을 변경한 새 인스턴스를 만들고  통으로 갈아끼우자!!'
+
+            //2. '값 타입 컬렉션'의 수정
+            //ex) Set<String> favoriteFoods의 '치킨T' -> '비빔밥T'
+            findMemberT1.getFavoriteFoods().remove("치킨T");
+            findMemberT1.getFavoriteFoods().add("한식T");
+
+            //ex) List<Address> addressHistory의 "oldcity1"을 "newcity1"로 변경
+            findMemberT1.getAddressHistory().remove(new Address("oldcity1", "streetT1", "0000T"));
+            //findMemberT1.getAddressHistory().add(new Address("newcity1", "streetT1", "0000T")); // AddressEntity 사용을 위한 주석
+            // 변경은 잘 됐지만, DELETE x 1 / INSERT x 2?
+
+            /**
+             * 그런데 참조형 임베디드 타입을 변경하고 쿼리를 살펴봤더니..???
+             * - DELETE 쿼리 1번 + INSERT 쿼리 2번 ?
+             * - 수정한 인스턴스뿐만 아니라, Table의 데이터를 통으로 날리고 다시 INSERT했다?
+             */
+
+            /**
+             * 값 타입 컬렉션의 제약사항
+             * - *** '값 타입'은 'Entity'와 다르게 '식별자' 개념이 없다 !!
+             * - '값 타입'은 변경하면 추적이 어렵다
+             * - '값 타입' *'컬렉션'에 변경이 발생하면?
+             *    1. *** 주인 Entity와 관련된 모든 데이터를 삭제하고
+             *    2. '값 타입' *'컬렉션'에 있는 현재값을 '모두 다시 저장'한다
+             *
+             * 실제 값 타입 컬렉션 Table을 생성하는 CREATE 쿼리 살펴보기
+             * create table ADDRESS_HISTORY (
+             *        MEMBER_ID bigint not null,
+             *         city varchar(255),
+             *         street varchar(255),
+             *         ZIP_CODE varchar(255)
+             *     ) -> *** PK, ID가 존재하지 않음!!! -> 추적이 불가능
+             * 해결 방법
+             * 1. @OrderColumn(name = "address_history_order") -> DELETE/INSERT가 아닌 UPDATE 쿼리로 변경
+             *   -> 이 경우, 1. 값 타입 컬렉션 Table에 새로운 Column을 추가해서 CREATE하고,
+             *              2. 주인 Entity의 PK와 추가된 Column을 PK로 등록하면서 이를 통해 추적/관리
+             *   -> 그러나 이것도 위험 + 복잡도가 너무 높음
+             * 2. 값 타입 컬렉션을 매핑하는 Table은 '모든 컬럼'을 묶어서 '기본키'를 구성해야함
+             *   -> null 입력과 중복 저장이 안된다는 제약사항은 생김
+             * 3. *** 결론적인 방법 - '값 타입을 Entity로 승격'
+             * - 실무에서는 상황에 따라 값 타입 컬렉션 대신 '일대다' 연관관계를 고려
+             * - '일대다' 관계를 위한 'Entity'를 만들고, 여기에 '값 타입'을 사용
+             * - 영속성전이(Cascade) + 고아객체 제거를 통해 '값 타입 컬렉션' 처럼 부모 Entity에 생명주기 의존시키기
+             * -> 생성되는 Table에는 ID, 즉 PK가 생기고, 주인 PK를 FK로 들고있으므로 더이상 '값 타입'이 아닌 'Entity'
+             * - *** 이 경우, 주인인 Member가 1인 관계에서 FK를 들고있으므로, UPDATE 쿼리가 AddressEntity 개수만큼 발생하는 것은 어쩔 수 없음
+             */
+
+            //'일대다 단방향' 관계로 설정시
+            findMemberT1.getAddressHistory().add(new AddressEntity("newcity1", "streetT1", "0000T"));
+            // -> *** '다' 쪽에서 FK를 들고있지만, '1'쪽인 Member가 주인이므로, update 쿼리가 2번 나가는 것은 어쩔 수 없음
+
+            /**
+             * 그러면, 도당체 '값 타입 컬렉션'은 언제 써야함?
+             * - *** 매우 단순할 때
+             *   ex) [치킨, 피자] 에서 0,1,2개를 선택하는 정도로 단순하고 추적이 필요없을 때
+             * - 값이 바껴도 update가 필요하지 않을 때
+             * - 값을 바꾸지 않더라도 DB 쿼리가 필요한 상황이 발생할 경우
+             *   ex) 주소변경 이력처럼 당장 사용하지 않는 데이터라도 이력이 필요한 경우
+             * *** 그 외의 경우에는 모두 'Entity'로 풀어가자!!
+             */
+
+            /**
+             * 정리
+             * 'Entity 타입'의 특징
+             * - 식별자 O
+             * - 주체적 생명 주기 관리
+             * - 공유 가능
+             * '값 타입'의 특징
+             * - 식별자 X
+             * - 생명주기를 Entity에 의존
+             * - 공유하지 않는 것이 안전 (복사해서 사용할 것)
+             * - '불변 객체'로 만드는 것이 안전
+             *
+             * ***
+             * 1. 값 타입은 정말 값 타입이라 판단될 때만 사용
+             * 2. Entity와 값 타입을 혼동해서 Entity를 값 타입으로 만들면 절대 안됨
+             * 3. 식별자가 필요하고, 지속해서 값을 추적하고, 변경해야 한다면 그거슨 Entity
+             */
 
             tx.commit();
 

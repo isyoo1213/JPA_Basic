@@ -259,6 +259,47 @@ public class JpaMain {
             System.out.println("findMemberDTO1.getUsername() = " + findMemberDTO1.getUsername());
             System.out.println("findMemberDTO1.getAge() = " + findMemberDTO1.getAge());
 
+            /**
+             * 페이징 API
+             * - JPA는 페이징을 두 API로 추상화함
+             * 1. setFirstResult(int startPosition)
+             * - 조회 시작위치 ( 0부터 시작 )
+             * 2. setMaxResults(int maxResult)
+             * - 조회할 데이터 수
+             *
+             * * 테스트할 경우, 쿼리에 order by를 적용해 sorting이 가능한지 확인
+             *
+             * *** Dialect에 대한 유연한 변경
+             * - H2Dialect -> OracleDialect로 변경하더라도 그에 맞게끔 실제 작성하는 sql 변경됨
+             *     ex) order by : H2 - limit/offset, Oracle - rowNum 3depth select
+             *   + 실제로 Dialect마다 사용되는 쿼리의 sorting 인덱스의 시작이 0, 1로 다를 수있지만,
+             *     이 또한 setFIrstResult()/setMaxResults가 모두 알아서 적용해줌
+             * - but, JPA가 변환해주는 dialect도 버전에 따라 레거시들은 오류가 발생하기도 함
+             * - 즉, JPA는 표준 스펙을 제공 -> JPQL은 이 스펙을 따르는 언어기능, JPA는 Dialect에 따른 변환기능
+             * - SpringDataJPA 또한 JPA 표준에 맞춰 '추상화된' paging 기능을 제공
+             */
+
+            for (int i = 0; i < 100; i++) {
+                Member member = new Member();
+                member.setUsername("membmer" + i);
+                member.setAge(i);
+                em.persist(member);
+            }
+
+            em.flush();
+            em.clear();
+
+            //order by까지 적용해봐야 sorting이 잘 적용되는지 확인할 수 있음
+            List<Member> resultList11 = em.createQuery("select m from Member m order by m.age desc", Member.class)
+                    .setFirstResult(0)
+                    .setMaxResults(10)
+                    .getResultList();
+
+            System.out.println("resultList11.size() = " + resultList11.size());
+            for (Member member : resultList11) {
+                System.out.println("member = " + member);
+            }
+
             tx.commit();
         } catch (Exception e) {
             tx.rollback();

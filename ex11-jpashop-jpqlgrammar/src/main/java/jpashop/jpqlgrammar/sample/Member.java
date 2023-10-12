@@ -42,4 +42,17 @@ public class Member {
     public void setAge(int age) {
         this.age = age;
     }
+
+    /**
+     * toString()시 Team에서도 member를 호출하며 무한루프 타는 것을 유의해야함!
+     */
+    @Override
+    public String toString() {
+        return "Member{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", age=" + age +
+                //", team=" + team +
+                '}';
+    }
 }

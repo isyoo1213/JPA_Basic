@@ -300,6 +300,50 @@ public class JpaMain {
                 System.out.println("member = " + member);
             }
 
+            /**
+             * JOIN
+             * 1. 내부조인
+             * SELECT m FROM Member m [INNER] 'JOIN m.team t'
+             * - 결국 Entity 중심으로 접근하므로, 'm.team t'와같이 객체.속성 형식으로 접근
+             * - inner는 생략 가능
+             *
+             * 2. 외부조인
+             * - SELECT m FROM Meber m LEFT [OUTER] JOIN m.team t
+             *
+             * 3. 세타조인
+             * - 연관관계가 없는 테이블끼리 조인 - 막조인
+             * - SELECT count(m) FROM Member m, Team t where m.username = t.name
+             */
+
+            em.flush();
+            em.clear();
+
+            Team teamJ = new Team();
+            teamJ.setName("teamJ");
+            em.persist(teamJ);
+
+            Member memberJ = new Member();
+            memberJ.setUsername("memberJ");
+            memberJ.setAge(40);
+            em.persist(memberJ);
+            memberJ.changeTeam(teamJ);
+
+            Member memberKim = em.find(Member.class, member1.getId());
+            memberKim.changeTeam(teamJ);
+
+
+
+
+            String queryInnerJoin = "select m from Member m inner join m.team t "; //inner는 생략 가능
+            String queryOuterJoin = "select m from Member m left outer join m.team t "; //outer 생략 가능
+            //where t.name = :teamName 처럼 파라미터로 받아서 동적으로 설정 가능
+            List<Member> resultListJ = em.createQuery(queryOuterJoin, Member.class)
+                    .getResultList();
+
+            for (Member member : resultListJ) {
+                System.out.println("member = " + member);
+            }
+
             tx.commit();
         } catch (Exception e) {
             tx.rollback();

@@ -14,8 +14,9 @@ public class Member {
 
     /**
      * 양방향으로 매핑할 예정
+     * *** LazyLoading이 아닌 경우, Team을 가져오는 sql까지 실행됨
      */
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "TEAM_ID")
     private Team team;
 
@@ -41,6 +42,11 @@ public class Member {
 
     public void setAge(int age) {
         this.age = age;
+    }
+
+    public void changeTeam(Team team) {
+        this.team = team;
+        team.getMembers().add(this);
     }
 
     /**

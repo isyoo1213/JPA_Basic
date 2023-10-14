@@ -344,6 +344,15 @@ public class JpaMain {
                 System.out.println("member = " + member);
             }
 
+            /**
+             * JOIN
+             * 내부조인
+             * SELECT m FROM MEMBER m [INNER] JOIN m.team t
+             *
+             * 외부조인
+             * SELECT m FROM MEMBER m LEFT [OUTER] JOIN m.team t
+             */
+
             tx.commit();
         } catch (Exception e) {
             tx.rollback();

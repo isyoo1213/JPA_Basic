@@ -332,8 +332,6 @@ public class JpaMain {
             memberKim.changeTeam(teamJ);
 
 
-
-
             String queryInnerJoin = "select m from Member m inner join m.team t "; //inner는 생략 가능
             String queryOuterJoin = "select m from Member m left outer join m.team t "; //outer 생략 가능
             //where t.name = :teamName 처럼 파라미터로 받아서 동적으로 설정 가능
@@ -345,13 +343,73 @@ public class JpaMain {
             }
 
             /**
-             * JOIN
-             * 내부조인
-             * SELECT m FROM MEMBER m [INNER] JOIN m.team t
+             * JOIN on 절
+             * - JPA 2.1부터 지원
+             * 1. 조인 대상 필터링
+             * - ex) member와 team을 조인하면서 team 이름이 A인 team만 join
+             * - JPQL : select m, t from Member m LEFT JOIN m.team t on t.name = 'A'
+             * - SQL  : select m.*, t.* from Member m
+             *             LEFT JOIN Team t on m.TEAM_ID=t.id and t.name = 'A'
+             *         -> FK와 join + On절
              *
-             * 외부조인
-             * SELECT m FROM MEMBER m LEFT [OUTER] JOIN m.team t
+             * 2.연관관계 없는 Entity OUTER JOIN
+             * - hibernate 5.1부터 지원
+             * ex) Member의 username과 Team의 name이 같은 대상 OUTER JOIN
+             * - JPQL : select m, t from Member m LEFT JOIN Team t on m.username = t.name
+             * - SQL : select m.*, t.* from
              */
+
+            em.flush();
+            em.clear();
+
+            //On절을 사용하는 Join 대상 Filtering
+            String queryOn = "select m from Member m left join m.team t on t.name = 'teamA'";
+            List<Member> resultList12 = em.createQuery(queryOn, Member.class)
+                    .getResultList();
+            for (Member member : resultList12) {
+                System.out.println("member = " + member);
+            }
+
+            //Hibernate:
+            //    /* select  m  from  Member m
+            //    left join
+            //        m.team t
+            //            on t.name = 'teamA' */ select
+            //                member0_.MEMBER_ID as member_i1_0_,
+            //                member0_.age as age2_0_,
+            //                member0_.TEAM_ID as team_id4_0_,
+            //                member0_.username as username3_0_
+            //        from
+            //            Member member0_
+            //        left outer join
+            //            Team team1_
+            //                on member0_.TEAM_ID=team1_.TEAM_ID // Inner Join
+            //                and ( team1_.name='teamA' )  // 이 부분이 On절
+
+            //2. On절을 사용하는 연관관계 없는 Entity의 Outer Join
+            String queryTheta = "select m from Member m join Team t on m.username = t.name";
+            List<Member> resultList13 = em.createQuery(queryTheta, Member.class)
+                    .getResultList();
+            for (Member member : resultList13) {
+                System.out.println("member = " + member);
+            }
+
+            //Hibernate:
+            //    /* select m from Member m
+            //    left join
+            //        Team t
+            //            on m.username = t.name */ select
+            //                member0_.MEMBER_ID as member_i1_0_,
+            //                member0_.age as age2_0_,
+            //                member0_.TEAM_ID as team_id4_0_,
+            //                member0_.username as username3_0_
+            //        from
+            //            Member member0_
+            //        left outer join
+            //            Team team1_  // 각각의 Id값을 통해 InnerJoin하던 sql 없음
+            //                on (  member0_.username=team1_.name  ) // On절
+
+            
 
             tx.commit();
         } catch (Exception e) {

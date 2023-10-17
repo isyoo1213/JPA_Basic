@@ -409,7 +409,55 @@ public class JpaMain {
             //            Team team1_  // 각각의 Id값을 통해 InnerJoin하던 sql 없음
             //                on (  member0_.username=team1_.name  ) // On절
 
-            
+            /**
+             * 서브쿼리 SubQuery
+             * - Main 쿼리와 Sub 쿼리가 서로 다른 Entity를 참조하는 방향이 이상적
+             * ex)
+             * - 1. 나이가 평균보다 많은 회원
+             * - select m from Member m where m.age > (select avg(m2.age) from Member m2)
+             * - 2. 한 건이라도 주문한 고객
+             * - select m from Member m where (select count(o) from Order where m = o.member) > 0
+             *   -> Main 쿼리에서 사용하는 Member m을 Sub쿼리에서도 그대로 사용하므로 성능에 이슈가 생길 수도 있음
+             *
+             * 서브쿼리 지원 함수
+             * [NOT] EXIST (subquery) : 서브쿼리에 결과가 존재하면 참
+             * {ALL | ANY | SOME } (subquery)
+             * - ALL 모두 만족하면 참
+             * - ANY/SOME 같은 의미. 조건을 하나라도 만족하면 참
+             * [NOT] IN (subquery): 서브쿼리의 결과 중 하나롣 같은 것이 있으면 참
+             *
+             * ex)
+             * 1. teamJ 소속인 회원
+             *  - select m from Member where exists (select t from m.team t where t.name = 'teamJ')
+             * 2. 전체 상품 각각의 재고보다 주문량이 많은 주문들
+             *  - select o from Order o where o.orderAmount > ALL (select p.stockAmount from Product p)
+             * 3. 어떤 팀이든 팀에 소속된 회원
+             *  - select m from Member m where m.team = ANY (select t from Team t)
+             *
+             * JPA에서의 서브쿼리의 한계 ***
+             * - JPA는 WHERE, HAVING 절에서만 서브 쿼리 사용 가능 - 표준스펙
+             * - SELECT 절도 가능 - hibernate에서 지원
+             * - FROM 절의 서브쿼리는 현재 JPQL에서 불가능 **
+             *   -> Best - JOIN으로 풀 수 있으면 풀어서 해결
+             *      or from 절의 서브쿼리의 결과를 filtering으로 줄이기 + application에서 조작
+             *      or 쿼리를 2번 분해해서 날리기
+             *      or 서브쿼리 sql 따로 + 본 쿼리 sql 따로 -> application에서 조립
+             *      or native 쿼리 (서브 쿼리 결과 data가 너무 큰 통계성 데이터)
+             *      + View에서 필요로하는 TypeCasting/문자변경 등은 application 수준으로 넘기기
+             *
+             *
+             */
+
+            //select 절의 서브쿼리
+            String querySub = "select (select avg(m1.age) from Member m1) as avgAge from Member m where m.age = 20";
+            List<Double> resultList14 = em.createQuery(querySub, Double.class)
+                    .getResultList();
+            for (Double age : resultList14) {
+                System.out.println("age = " + age);
+            }
+
+            //From 절의 서브쿼리 ex)
+            //select mm.age, mm.username from (select m.age, m.username from Member m) as mm
 
             tx.commit();
         } catch (Exception e) {
